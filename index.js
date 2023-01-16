@@ -53,7 +53,7 @@ async function addDepartment(){
     },
   ])
   const ping = await db.promise().query(`INSERT INTO department (name) VALUES ("${entry.name}")`)
-  console.log(`${entry.name} department added!`)
+  console.log(`\n${entry.name} department added!\n`)
   openMenu()
 }
 //Add a Role - Inquirer prompt to add name, salary and department, then a query call to add the role.
@@ -88,7 +88,7 @@ async function addRole(){
   //I am so glad async functions exist... .then() chains are aggressively unwieldy.
   const ping = await db.promise().query(`INSERT INTO role (title, salary, department_id) VALUES ("${entries.title}", ${entries.salary}, ${depId[0][0].id})`)
   
-  console.log(`${entries.title} role added!`)
+  console.log(`\n${entries.title} role added!\n`)
   openMenu()
 }
 //Add Employee - Add first and last names, role and manager (may need dynamic inquirer again) and query call to, y'know.
@@ -148,58 +148,90 @@ async function addEmployee(){
 }
 
 //Update Employee Role - Prompt to select employee, then select new role, then make call to update role.
-function updateEmployee(){
+async function updateEmployee(){
+  //Pull down role and employee lists in preparation for Inquirer prompt
+  const roles = []
+  const employees = []
+  const roleData = await db.promise().query('SELECT role.title FROM role')
+  const empData = await db.promise().query('SELECT employee.first_name, employee.last_name FROM employee')
+  roleData[0].forEach(obj => {
+    roles.push(obj.title)
+  })
+  empData[0].forEach(obj => {
+    employees.push(obj.first_name + ' ' + obj.last_name)
+  })
+  //
+  const entries = await inquirer.prompt([
+    {
+      type: "list",
+      name: "employee",
+      message: "Select an employee to update: ",
+      choices: employees
+    },
+    {
+      type: "list",
+      name: "role",
+      message: "What is the employee's new role?",
+      choices: roles
+    }
+  ])
+  //Splits the chosen name, then acquires the employee ID from it.
+  const chosenName = entries.employee.split(' ')
+  const empId = await db.promise().query(`SELECT id FROM employee WHERE first_name = ? AND last_name = ?`, chosenName)
+  //Acquires the role id from the chosen role
+  const roleId = await db.promise().query(`SELECT id FROM role WHERE title = ?`, entries.role)
 
+  const ping = await db.promise().query(`UPDATE employee SET role_id = ${roleId[0][0].id} WHERE id = ${empId[0][0].id}`)
+  console.log(`\nEmployee ${entries.employee} is now a ${entries.role}!\n`)
+  openMenu()
 }
 
-function openMenu(){
+async function openMenu(){
   {
-    inquirer.prompt([
-        {
-          type: "list",
-          name: "choice",
-          message: "Select an option:",
-          choices: [
-              "Display all departments",
-              "Display all roles",
-              "Display all employees",
-              "Add new department",
-              "Add a role",
-              "Add an employee",
-              "Update employee role",
-              new inquirer.Separator(),
-              "Quit application"
-          ]
-        }
-      ])
-      .then(val => {
-        switch (val.choice) {
-          case "Display all departments":
-            allDepartments();
-            break;
-          case "Display all roles":
-            allRoles();
-            break;
-          case "Display all employees":
-            allEmployees();
-            break;
-          case "Add new department":
-            addDepartment();
-            break;
-          case "Add a role":
-            addRole();
-            break;
-          case "Add an employee":
-            addEmployee();
-            break;
-          case "Update employee role":
-            updateEmployee();
-            break;
-          case "Quit application":
-            process.exit();
-            break;
-        }
-    })
+    const entry = await inquirer.prompt([
+      {
+        type: "list",
+        name: "choice",
+        message: "Select an option:",
+        choices: [
+            "Display all departments",
+            "Display all roles",
+            "Display all employees",
+            "Add new department",
+            "Add a role",
+            "Add an employee",
+            "Update employee role",
+            new inquirer.Separator(),
+            "Quit application"
+        ]
+      }
+    ])
+    switch (entry.choice) {
+      case "Display all departments":
+        allDepartments();
+        break;
+      case "Display all roles":
+        allRoles();
+        break;
+      case "Display all employees":
+        allEmployees();
+        break;
+      case "Add new department":
+        addDepartment();
+        break;
+      case "Add a role":
+        addRole();
+        break;
+      case "Add an employee":
+        addEmployee();
+        break;
+      case "Update employee role":
+        updateEmployee();
+        break;
+      case "Quit application":
+        process.exit();
+        break;
+    }
   }
 }
 
